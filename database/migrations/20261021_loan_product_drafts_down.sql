@@ -1,0 +1,32 @@
+-- Optional rollback for EMPTY draft storage only. Roll back application code first.
+-- All statements preserve data when draft versions/products or bound applications exist.
+SET @product_rows = 0;
+SET @bound_loans = 0;
+SET @exists = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='coop_loan_products');
+SET @ddl = IF(@exists>0, 'SELECT @product_rows := @product_rows + COUNT(*) FROM coop_loan_products', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @exists = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='coop_loan_product_versions');
+SET @ddl = IF(@exists>0, 'SELECT @product_rows := @product_rows + COUNT(*) FROM coop_loan_product_versions', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @has_binding = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='loan_requests' AND COLUMN_NAME='loan_product_version_id');
+SET @ddl = IF(@has_binding>0, 'SELECT @bound_loans := COUNT(*) FROM loan_requests WHERE loan_product_version_id IS NOT NULL OR product_terms_snapshot IS NOT NULL OR product_terms_hash IS NOT NULL', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @command_rows = 0;
+SET @commands_exist = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='coop_loan_product_commands');
+SET @ddl = IF(@commands_exist>0, 'SELECT @command_rows := COUNT(*) FROM coop_loan_product_commands', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @rollback_safe = (@product_rows=0 AND @bound_loans=0 AND @command_rows=0);
+SET @exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='loan_requests' AND COLUMN_NAME='loan_product_version_id');
+SET @ddl = IF(@rollback_safe AND @exists>0, 'ALTER TABLE loan_requests DROP COLUMN loan_product_version_id', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='loan_requests' AND COLUMN_NAME='product_terms_snapshot');
+SET @ddl = IF(@rollback_safe AND @exists>0, 'ALTER TABLE loan_requests DROP COLUMN product_terms_snapshot', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='loan_requests' AND COLUMN_NAME='product_terms_hash');
+SET @ddl = IF(@rollback_safe AND @exists>0, 'ALTER TABLE loan_requests DROP COLUMN product_terms_hash', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @ddl = IF(@rollback_safe, 'DROP TABLE IF EXISTS coop_loan_product_versions', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @ddl = IF(@rollback_safe, 'DROP TABLE IF EXISTS coop_loan_products', 'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SELECT IF(@rollback_safe, 'Empty draft storage removed; legacy applications preserved', 'Rollback retained all data because drafts, application bindings or retry commands exist') AS rollback_result;

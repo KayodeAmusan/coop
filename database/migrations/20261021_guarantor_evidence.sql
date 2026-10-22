@@ -1,0 +1,46 @@
+-- Additive private supporting evidence. No upload changes guarantor consent or loan approval.
+-- Apply after loan request and consent migrations. Preserve all versions/history on rollback.
+CREATE TABLE IF NOT EXISTS loan_guarantor_evidence (
+ id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ public_id CHAR(32) NOT NULL UNIQUE,
+ upload_key_hash CHAR(64) NOT NULL UNIQUE,
+ upload_fingerprint CHAR(64) NOT NULL,
+ loan_request_id INT NOT NULL,
+ guarantor_request_id INT NOT NULL,
+ guarantor_coop_id VARCHAR(255) NOT NULL,
+ evidence_kind ENUM('acknowledgement','approval') NOT NULL,
+ version_number INT NOT NULL,
+ terms_hash CHAR(64) NOT NULL,
+ terms_snapshot TEXT NOT NULL,
+ invitation_snapshot TEXT NOT NULL,
+ storage_key CHAR(64) NOT NULL UNIQUE,
+ content_sha256 CHAR(64) NOT NULL,
+ byte_size INT NOT NULL,
+ mime_type VARCHAR(40) NOT NULL,
+ scan_status ENUM('quarantined','clean','infected') NOT NULL DEFAULT 'quarantined',
+ scan_engine VARCHAR(100) NULL,
+ uploaded_by_type ENUM('member','staff') NOT NULL,
+ uploaded_by_id VARCHAR(255) NOT NULL,
+ uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ review_status ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
+ reviewed_by_type ENUM('member','staff') NULL,
+ reviewed_by_id VARCHAR(255) NULL,
+ reviewed_at DATETIME NULL,
+ review_notes TEXT NULL,
+ UNIQUE KEY uq_guarantor_evidence_version (guarantor_request_id,evidence_kind,version_number),
+ INDEX idx_guarantor_evidence_loan (loan_request_id),
+ CONSTRAINT fk_guarantor_evidence_loan FOREIGN KEY (loan_request_id) REFERENCES loan_requests(id) ON DELETE RESTRICT,
+ CONSTRAINT fk_guarantor_evidence_invitation FOREIGN KEY (guarantor_request_id) REFERENCES guarantor_requests(id) ON DELETE RESTRICT,
+ CONSTRAINT chk_guarantor_evidence_size CHECK (byte_size > 0 AND byte_size <= 5242880)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS loan_guarantor_evidence_history (
+ id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ evidence_id INT NOT NULL,
+ event_type ENUM('upload','scan','review','download') NOT NULL,
+ actor_type ENUM('member','staff') NOT NULL,
+ actor_id VARCHAR(255) NOT NULL,
+ event_metadata TEXT NOT NULL,
+ recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ INDEX idx_evidence_history (evidence_id,id),
+ CONSTRAINT fk_guarantor_evidence_history FOREIGN KEY (evidence_id) REFERENCES loan_guarantor_evidence(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

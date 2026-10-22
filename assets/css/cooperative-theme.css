@@ -1,0 +1,77 @@
+/* Deployment branding overrides these tokens; no tenant identity is inferred here. */
+:root {
+  --color-primary: #2448a0;
+  --color-accent: #7041a6;
+  --color-primary-wash: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --color-accent-wash: color-mix(in srgb, var(--color-accent) 9%, transparent);
+  --color-on-primary: #ffffff;
+  --color-text: #19243b;
+  --color-muted: #4c5870;
+  --color-link: #2448a0;
+  --color-danger: #a51d36;
+  --color-success: #17633d;
+  --color-warning: #794600;
+  --color-border: #78859b;
+  --color-divider: #d1d9e7;
+  --color-canvas: #edf1f8;
+  --color-surface: #ffffff;
+  --color-surface-tint: #f1f4fb;
+  --color-nav: #17253f;
+  --color-on-nav: #ffffff;
+  --color-nav-muted: #d5dfee;
+  --glass-surface: rgba(255, 255, 255, .91);
+  --glass-nav: rgba(23, 37, 63, .96);
+  --glass-border: rgba(255, 255, 255, .88);
+  --shadow-panel: 0 12px 32px rgba(25, 36, 59, .08), inset 0 1px 0 rgba(255, 255, 255, .9);
+  --radius-panel: 20px;
+  --radius-control: 12px;
+  --space-panel: clamp(1rem, 2.5vw, 1.75rem);
+  --focus-color: #2448a0;
+  --focus-on-dark: #ffffff;
+}
+.coop-shell, .coop-public {
+  color: var(--color-text);
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(ellipse at 8% 0%, var(--color-accent-wash), transparent 45%), radial-gradient(ellipse at 96% 35%, var(--color-primary-wash), transparent 42%);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height: 1.55;
+}
+.coop-glass, .coop-card {
+  background: var(--glass-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-panel);
+}
+.coop-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--color-primary);
+  border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-on-primary);
+  font: inherit; font-weight: 650; text-decoration: none; cursor: pointer;
+}
+.coop-button--secondary { background: var(--color-surface); color: var(--color-link); }
+.coop-field { min-height: 44px; padding: .7rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); max-width: 100%; }
+.coop-notice { padding: 1rem; border: 1px solid var(--color-divider); border-left: 4px solid var(--color-primary); border-radius: var(--radius-control); background: var(--color-surface); }
+.coop-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.coop-table :is(th,td) { padding: .75rem; border-bottom: 1px solid var(--color-divider); text-align: left; }
+.coop-public { margin: 0; padding: clamp(1rem,4vw,3rem); min-height: 100vh; }
+.coop-public *, .coop-card *, .coop-glass * { box-sizing: border-box; }
+.coop-public main { max-width: 66rem; margin: auto; }
+.coop-credit { color: var(--color-muted); font-size: .85rem; line-height: 1.6; }
+.coop-credit a { color: var(--color-link); text-decoration: underline; text-underline-offset: .2em; }
+.coop-brand-mark { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border: 1px solid var(--glass-border); border-radius: 14px; background: rgba(255,255,255,.12); }
+.coop-brand-mark img { width: 100%; height: 100%; object-fit: contain; }
+.coop-public :is(a,button,input,select,textarea):focus-visible, .coop-button:focus-visible, .coop-field:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+@supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .coop-glass { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-color: var(--glass-border); }
+}
+@media (prefers-reduced-transparency: reduce), (update: slow) {
+  .coop-glass, .coop-card { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--color-surface); }
+  .coop-shell, .coop-public { background: var(--color-canvas); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coop-shell *, .coop-public * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (forced-colors: active) {
+  .coop-glass,.coop-card,.coop-button,.coop-field { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; backdrop-filter: none; }
+}

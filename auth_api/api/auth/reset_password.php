@@ -1,0 +1,132 @@
+<?php
+if (ob_get_level()) ob_end_clean();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
+// Set all required CORS headers
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Authorization, X-Requested-With');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Max-Age: 1728000');
+header('Content-Type: application/json; charset=UTF-8');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+
+require_once '../../config/Database.php';
+require_once '../../utils/EmailService.php';
+require_once '../../utils/Validator.php';
+header('Content-Type: application/json');
+
+try {
+    $data = json_decode(file_get_contents('php://input'));
+    if (!isset($data->email) || !isset($data->otp) || !isset($data->new_password)) {
+        throw new Exception('All fields are required');
+    }
+
+    $passwordError = Validator::passwordError($data->new_password);
+    if ($passwordError !== null) {
+        throw new Exception($passwordError);
+    }
+
+    $database = new Database();
+    $db = $database->getConnection();
+
+    // Verify OTP
+    $sql = "SELECT * FROM tbl_password_resets 
+            WHERE email = :email 
+            AND otp = :otp 
+            AND expiry_time > UTC_TIMESTAMP() 
+            AND used = 0 
+            ORDER BY created_at DESC 
+            LIMIT 1";
+
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':otp', $data->otp);
+    $stmt->execute();
+
+    if ($stmt->rowCount() === 0) {
+        throw new Exception('Invalid or expired OTP');
+    }
+
+    // Get CoopID from employees table
+    $sql = "SELECT CoopID FROM tblemployees 
+            WHERE EmailAddress = :email AND STATUS = 'Active'
+            LIMIT 1";
+
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(':email', $data->email);
+    $stmt->execute();
+
+    $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$employee) {
+        throw new Exception('Employee not found');
+    }
+
+    // Update password in users_online table
+    $hashedPassword = password_hash($data->new_password, PASSWORD_DEFAULT);
+
+    $sql = "UPDATE tblusers_online
+            SET UPassword = :hashed_password,
+                CPassword = :hashed_password
+            WHERE Username = :coop_id";
+
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(':hashed_password', $hashedPassword);
+    $stmt->bindParam(':coop_id', $employee['CoopID']);
+    $stmt->execute();
+
+    if ($stmt->rowCount() === 0) {
+        // If update failed, user might not exist in tblusers_online, so insert
+        $sql = "INSERT INTO tblusers_online
+                (Username, UPassword, CPassword, first_login, roleid, dateofRegistration)
+                VALUES (:coop_id, :hashed_password, :hashed_password, 1, 2, CURDATE())";
+
+        $stmt = $db->prepare($sql);
+        $stmt->bindParam(':coop_id', $employee['CoopID']);
+        $stmt->bindParam(':hashed_password', $hashedPassword);
+
+        if (!$stmt->execute()) {
+            throw new Exception('Failed to update or create user account');
+        }
+    }
+
+    // Mark OTP as used
+    $sql = "UPDATE tbl_password_resets 
+            SET used = 1 
+            WHERE email = :email AND otp = :otp";
+
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':otp', $data->otp);
+    $stmt->execute();
+
+    // The password is already changed and the OTP consumed, so a failed
+    // notification must not be reported as a failed reset.
+    try {
+        $emailService = new EmailService();
+        $emailService->sendPasswordResetSuccessNotification($data->email, $employee['CoopID']);
+    } catch (Exception $e) {
+        error_log('Password reset email failed for ' . $employee['CoopID'] . ': ' . $e->getMessage());
+    }
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Password reset successfully'
+    ]);
+
+} catch (Exception $e) {
+    error_log("Password reset error: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+}
