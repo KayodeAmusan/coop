@@ -1,0 +1,15 @@
+# Member evidence browser interface
+
+`member_guarantor_evidence.php` is a maintained member-facing evidence page. It uses the existing member username/password login API and stores the returned JWT only in page memory. It does not use staff session IDs as member IDs, accept pasted tokens or persist passwords/tokens. Refresh requires login again. Sign-out clears the page identity, file input and private history; existing JWT server revocation semantics are unchanged.
+
+The page lists the authenticated member's own loans and guarantor invitations using the existing loan APIs. Those lists supply references only: the evidence API independently authorizes and binds the actual loan/invitation before upload/history/download. Existing direct-click guarantor counts do not establish proof readiness. Uploads do not accept evidence or approve a loan.
+
+Staff and member pages share `includes/guarantor_evidence_view.php` and `assets/js/guarantor_evidence.js`. Member requests omit cookies and send the JWT as a Bearer header. Clean private downloads fetch with that header, create a temporary blob download and revoke its URL. Members receive no review or malware-rescan controls; server authorization remains authoritative.
+
+Both interfaces persist one pending upload intent in `sessionStorage` before submitting. Only a random key and SHA-256 fingerprint are stored; the fingerprint binds actor, association, evidence kind, current terms and actual file-content digest. No JWT, raw member/loan references, filenames or file bytes are stored. After refresh/login, selecting the same content/context restores the key. Changed content/context is blocked until an explicit confirmed **Start a different upload** action. Successful confirmed upload clears the intent. Sign-out/context selection does not silently clear uncertain intent. Storage failures and missing secure WebCrypto fail closed before upload. Closing/clearing tab storage loses this client reference; check server history before beginning a new upload.
+
+Requests have a 30-second abort bound, busy guards and truthful uncertain-result messaging. Aborting does not imply server rollback. The browser needs HTTPS (or trusted localhost), available tab storage and JavaScript. The page introduces no new product, eligibility, staff grant or loan publication policy.
+
+Verified: seven PHP render checks across staff/member pages and both executable DOM contract suites. Tests exercise member login/error/expiry, own/invited discovery, absence of staff controls, authorized blob download/revocation, retained opaque key across a new page context, payload conflict, storage failure, busy guard, abort timeout and restored controls. Existing staff review/rescan/history contracts remain exercised.
+
+No rendered-browser, native keyboard, real viewport, screen-reader or full deployed authentication acceptance is claimed. Supported browser inventory was unavailable. DOM transports are synthetic; backend evidence authorization/storage/concurrency use their separate isolated HTTP/MariaDB suite. Whole-system idempotency remains incomplete; see `IDEMPOTENCY_AUDIT.md`.

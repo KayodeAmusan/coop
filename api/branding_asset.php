@@ -1,0 +1,3 @@
+<?php
+require_once __DIR__.'/../includes/deployment_settings_helper.php';require_once __DIR__.'/../includes/branding_asset_service.php';ini_set('display_errors','0');
+try{if(($_SERVER['REQUEST_METHOD']??'GET')!=='GET')throw new RuntimeException('Use GET for branding images',405);if(!is_string($_GET['id']??null))throw new RuntimeException('Branding asset not found',404);(new BrandingAssetService(deploymentSettingsDatabase(),configuredGuarantorEvidenceStorage()))->serve($_GET['id']);}catch(Throwable$error){http_response_code(in_array($error->getCode(),[404,405],true)?$error->getCode():500);header('Content-Type: text/plain');header('Cache-Control: no-store');echo 'Branding image is unavailable.';}
