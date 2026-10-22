@@ -4,6 +4,8 @@
 
 ## Current blockers
 
+Update: local KayodeAmusan Git Credential Manager authentication succeeded and the reviewed455-file source snapshot was published and hash-verified as commit0ead8e3d78d7a0dfc1487a24d010eb2c5be619a4. Listed credential literals were removed from the current publication files and eight focused boundary checks passed. The connector403 below remains a historical limitation, not the upload mechanism. Old history remains local; credential rotation, full PII review and deployment dependency completeness are not certified by this publication.
+
 - The GitHub connector's attempted `create_file` operation returned HTTP 403, `Resource not accessible by integration`. No upload succeeded. Repository write authorization/app installation or an authenticated Git client is required.
 - Existing upstream history contains credential-bearing source. A normal history push would publish it even after current-file cleanup. Do not push that history to a public repository. Prepare a reviewed source-only snapshot with no inherited history after credential/privacy review; preserve the original working tree and its history locally.
 - Current source still contains credential-like literals in legacy paths. Safe inspection returned filenames/line numbers only; no values were copied to this document. Review and remove active literals, replace runtime configuration appropriately, and rotate exposed credentials before deployment. No mass source sanitization or rotation was performed by this review.
